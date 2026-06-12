@@ -1,0 +1,41 @@
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --color-background-primary: #ffffff;
+  --color-background-secondary: #f6f5f2;
+  --color-text-primary: #1f1d2b;
+  --color-text-secondary: #55525f;
+  --color-text-tertiary: #8b8895;
+  --color-border-secondary: #d6d4de;
+  --color-border-tertiary: #e8e6ef;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #e9e7f8; /* marco lila suave alrededor de la app en pantallas grandes */
+  font-family: var(--font-sans);
+  color: var(--color-text-primary);
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+/* La columna de la app (max 420px) llena la altura del teléfono */
+#root > div {
+  min-height: 100dvh;
+}
+
+input,
+button,
+select,
+textarea {
+  font-family: inherit;
+}
