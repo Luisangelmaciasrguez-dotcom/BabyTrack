@@ -320,7 +320,7 @@ export default function App(){
       {cfg&&<ConfigPanel baby={baby} setBaby={setBaby} prefs={prefs} setPrefs={setPrefs} famCode={famCode} guardarFamilia={guardarFamilia} onClose={()=>setCfg(false)}/>}
 
       <div style={{flex:1,padding:"14px 14px 8px",overflowY:"auto"}}>
-        {tab==="home"  && <HomeTab {...sp} tomasHoy={tomasHoy} totalMl={totalMl} reflujos={reflujos} banosHoy={banosHoy} estadoActual={estadoActual} cambiarEstado={cambiarEstado} setTab={setTab} suenos={suenos}/>}
+        {tab==="home"  && <HomeTab {...sp} tomasHoy={tomasHoy} totalMl={totalMl} estadoActual={estadoActual} cambiarEstado={cambiarEstado} setTab={setTab} suenos={suenos}/>}
         {tab==="tomas" && <TomasTab {...sp}/>}
         {tab==="sueno" && <SuenoTab {...sp}/>}
         {tab==="bano"  && <BanoTab {...sp}/>}
@@ -398,20 +398,20 @@ function ConfigPanel({baby,setBaby,prefs,setPrefs,famCode,guardarFamilia,onClose
 }
 
 /* ---- HomeTab ---- */
-function HomeTab({tomasHoy,totalMl,reflujos,banosHoy,dormido,citas,meds,estadoActual,cambiarEstado,setTab,estados,suenos}){
+function HomeTab({tomasHoy,totalMl,dormido,citas,meds,mediciones,estadoActual,cambiarEstado,setTab,estados,suenos}){
   const {unidad,f24}=usePrefs();
   const [diaFiltro,setDiaFiltro]=useState(todayStr());
-  const proxCita=[...citas].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).find(c=>new Date(c.fecha)>=new Date());
+  const proxCitas=[...citas].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha)).filter(c=>new Date(c.fecha)>=new Date()).slice(0,3);
   const medsActivos=meds.filter(m=>m.activo);
   const estadoObj=estados.find(e=>e.id===estadoActual?.id)||(estadoActual?{label:estadoActual.label||"Estado",color:estadoActual.color||"#888",bg:estadoActual.bg||"#F1EFE8",emoji:estadoActual.emoji}:null);
 
-  // Calcular totales del día filtrado
-  const tomasDia=tomasHoy; // por ahora usamos hoy; el filtro de inicio muestra hoy por defecto
-  const totalDia=tomasDia.reduce((a,b)=>a+(b.ml||0),0);
-  // Horas dormidas hoy
+  // Horas dormidas del día filtrado
   const suenosDia=suenos.filter(s=>s.fecha===diaFiltro);
   const minDormidos=suenosDia.reduce((a,s)=>a+durMin(s.inicio,s.fin),0);
   const horasDormidas=minDormidos>0?`${Math.floor(minDormidos/60)}h ${minDormidos%60}m`:"—";
+
+  // Último peso y talla registrados
+  const ultimaMed=[...mediciones].reverse()[0];
 
   return (
     <div>
@@ -420,13 +420,50 @@ function HomeTab({tomasHoy,totalMl,reflujos,banosHoy,dormido,citas,meds,estadoAc
         <input type="date" value={diaFiltro} onChange={e=>setDiaFiltro(e.target.value)} style={{...inp,width:138,fontSize:12,padding:"4px 8px"}}/>
       </div>
 
-      {/* Tarjetas resumen */}
+      {/* Tarjeta info del bebé */}
+      <div style={{background:PL,borderRadius:16,padding:"13px 14px",marginBottom:14}}>
+        <div style={{fontSize:11,fontWeight:600,color:PD,textTransform:"uppercase",letterSpacing:"0.3px",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+          {IcoClock(PD)} Información del bebé
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <div style={{background:"#fff",borderRadius:10,padding:"8px 10px"}}>
+            <div style={{fontSize:10,color:"var(--color-text-tertiary)",marginBottom:2}}>Peso actual</div>
+            <div style={{fontSize:18,fontWeight:700,color:PD}}>{ultimaMed?.peso?`${ultimaMed.peso} kg`:"—"}</div>
+            {ultimaMed?.peso&&<div style={{fontSize:10,color:PM}}>{ultimaMed.fecha}</div>}
+          </div>
+          <div style={{background:"#fff",borderRadius:10,padding:"8px 10px"}}>
+            <div style={{fontSize:10,color:"var(--color-text-tertiary)",marginBottom:2}}>Talla actual</div>
+            <div style={{fontSize:18,fontWeight:700,color:PD}}>{ultimaMed?.talla?`${ultimaMed.talla} cm`:"—"}</div>
+            {ultimaMed?.talla&&<div style={{fontSize:10,color:PM}}>{ultimaMed.fecha}</div>}
+          </div>
+        </div>
+      </div>
+
+      {/* Solo 2 tarjetas: Tomas y Sueño */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <SCard accent={ACCENT.bottle} ico={IcoBottle} label="Tomas hoy" value={tomasHoy.length} sub={fmtCant(totalMl,unidad)} onClick={()=>setTab("tomas")}/>
-        <SCard accent={ACCENT.pill}   ico={IcoFrown}  label="Reflujos"  value={reflujos}         sub="hoy"           onClick={()=>setTab("tomas")}/>
-        <SCard accent={ACCENT.poop}   ico={IcoDrop}   label="Pañales"   value={banosHoy.length}  sub="hoy"           onClick={()=>setTab("bano")}/>
         <SCard accent={ACCENT.sleep}  ico={IcoMoon}   label="Horas dormidas" value={horasDormidas} sub={dormido?`desde ${fmtHora(dormido,f24)}`:"hoy"} onClick={()=>setTab("sueno")}/>
       </div>
+
+      {/* Próximas citas ordenadas */}
+      {proxCitas.length>0&&(
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+            {IcoCalendar("var(--color-text-primary)")} Próximas citas
+          </div>
+          {proxCitas.map((c,i)=>(
+            <div key={i} style={{background:ACCENT.appt.bg,borderRadius:14,padding:"10px 12px",marginBottom:8,display:"flex",gap:10,alignItems:"center"}}>
+              <div style={{width:34,height:34,background:"rgba(255,255,255,0.7)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {IcoCalendar(ACCENT.appt.icon)}
+              </div>
+              <div>
+                <div style={{fontWeight:500,fontSize:13,color:ACCENT.appt.text}}>{c.doctor}</div>
+                <div style={{fontSize:11,color:ACCENT.appt.icon}}>{c.fecha}{c.hora&&` · ${fmtHora(c.hora,f24)}`}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Estado del bebé */}
       <div style={{marginBottom:14}}>
@@ -453,9 +490,6 @@ function HomeTab({tomasHoy,totalMl,reflujos,banosHoy,dormido,citas,meds,estadoAc
         <InfoBanner accent={ACCENT.pill} icon={IcoBell(ACCENT.pill.icon)} title="Medicamentos activos" sub={`${medsActivos.length} con alarma`}>
           {medsActivos.map((m,i)=><div key={i} style={{fontSize:13,color:ACCENT.pill.text,marginTop:2}}>{m.nombre} — {m.dosis} {m.unidad} c/{m.cadaHoras}h{m.ultimaDosis&&<span style={{opacity:0.6}}> · última: {fmtHora(m.ultimaDosis,f24)}</span>}</div>)}
         </InfoBanner>
-      )}
-      {proxCita&&(
-        <InfoBanner accent={ACCENT.appt} icon={IcoCalendar(ACCENT.appt.icon)} title={proxCita.doctor} sub={`${proxCita.fecha}${proxCita.hora?` · ${fmtHora(proxCita.hora,f24)}`:""}`}/>
       )}
     </div>
   );
@@ -734,15 +768,35 @@ function BanoTab({banos,setBanos}){
 
 /* ---- SaludTab — sin sección de Estados ---- */
 function SaludTab({vacunas,setVacunas,citas,setCitas,meds,setMeds,mediciones,setMediciones,programarAlarma}){
-  const [sec,setSec]=useState("meds");
-  const sections=[["meds","Medicamentos"],["growth","Crecimiento"],["vaccines","Vacunas"],["appts","Citas"]];
-  return (
+  const [sec,setSec]=useState(null);
+  const SECCIONES=[
+    {id:"meds",   label:"Medicamentos", sub:"activos",   bg:ACCENT.pill.bg,   color:ACCENT.pill.text,   icon:(c)=><svg width="26" height="26" viewBox="0 0 24 24" fill={c}><path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2Zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2Z"/></svg>},
+    {id:"growth", label:"Crecimiento",  sub:"peso y talla", bg:ACCENT.sleep.bg, color:ACCENT.sleep.text, icon:(c)=><svg width="26" height="26" viewBox="0 0 24 24" fill={c}><path d="M3 3a1 1 0 0 0 0 2h1v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V5h1a1 1 0 1 0 0-2H3Zm3 2h10v13H6V5Zm2 3a1 1 0 0 0 0 2h2a1 1 0 1 0 0-2H8Zm0 4a1 1 0 1 0 0 2h6a1 1 0 1 0 0-2H8Z"/></svg>},
+    {id:"vaccines",label:"Vacunas",     sub:"historial",  bg:"#EAF3DE",        color:"#27500A",          icon:(c)=><svg width="26" height="26" viewBox="0 0 24 24" fill={c}><path d="M11 3a1 1 0 1 1 2 0v1h2a1 1 0 1 1 0 2h-.586l2.293 2.293a1 1 0 0 1-1.414 1.414L13 7.414V9a1 1 0 1 1-2 0V7.414L8.707 9.707a1 1 0 0 1-1.414-1.414L9.586 6H9a1 1 0 0 1 0-2h2V3Zm-6 9a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1Zm5 1a1 1 0 1 0-2 0v5a1 1 0 1 0 2 0v-5Zm3-1a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1Zm4 0a1 1 0 0 1 1 1v5a1 1 0 1 1-2 0v-5a1 1 0 0 1 1-1Z"/></svg>},
+    {id:"appts",  label:"Citas",        sub:"próximas",   bg:ACCENT.appt.bg,   color:ACCENT.appt.text,   icon:(c)=><svg width="26" height="26" viewBox="0 0 24 24" fill={c}><path d="M8 2a1 1 0 0 1 1 1v1h6V3a1 1 0 1 1 2 0v1h1a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h1V3a1 1 0 0 1 1-1Zm-2 6a1 1 0 0 0 0 2h12a1 1 0 1 0 0-2H6Z"/></svg>},
+  ];
+  if(!sec) return (
     <div>
-      <div style={{display:"flex",gap:6,marginBottom:14,overflowX:"auto",paddingBottom:2}}>
-        {sections.map(([id,label])=>(
-          <button key={id} onClick={()=>setSec(id)} style={{padding:"7px 13px",borderRadius:20,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",border:"none",background:sec===id?P:PL,color:sec===id?"#fff":PD,fontWeight:sec===id?500:400}}>{label}</button>
+      <SecTitle>{IcoHeart(ACCENT.pill.icon)} Salud</SecTitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {SECCIONES.map(s=>(
+          <button key={s.id} onClick={()=>setSec(s.id)} style={{background:s.bg,borderRadius:18,padding:"18px 14px",border:"none",cursor:"pointer",textAlign:"left",width:"100%",boxShadow:"0 1px 4px rgba(0,0,0,0.05)",display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{width:44,height:44,borderRadius:12,background:"rgba(255,255,255,0.65)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {s.icon(s.color)}
+            </div>
+            <div style={{fontSize:14,fontWeight:600,color:s.color}}>{s.label}</div>
+            <div style={{fontSize:11,color:s.color,opacity:0.7}}>{s.sub}</div>
+          </button>
         ))}
       </div>
+    </div>
+  );
+  return (
+    <div>
+      <button onClick={()=>setSec(null)} style={{background:"none",border:"none",color:P,fontSize:13,cursor:"pointer",marginBottom:12,padding:0,display:"flex",alignItems:"center",gap:4}}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={P}><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        Volver a Salud
+      </button>
       {sec==="meds"     && <MedsPanel meds={meds} setMeds={setMeds} programarAlarma={programarAlarma}/>}
       {sec==="growth"   && <GrowthPanel mediciones={mediciones} setMediciones={setMediciones}/>}
       {sec==="vaccines" && <VaxPanel vacunas={vacunas} setVacunas={setVacunas}/>}
